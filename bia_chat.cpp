@@ -30,7 +30,7 @@ void broadcast(const std::string &message, int sender_socket) {
   }
 }
 
-void send_to_client(int client_socket, const std::string &message) {
+BIA_CHAT_API void send_to_client(int client_socket, const std::string &message) {
   send(client_socket, message.c_str(), message.size(), 0);
 }
 
@@ -103,7 +103,7 @@ std::string get_local_ip() {
 #endif
 }
 
-int start_server() {
+BIA_CHAT_API int start_server() {
 #ifdef _WIN32
   WSADATA wsaData;
   WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -129,12 +129,12 @@ int start_server() {
   return server_fd;
 }
 
-void close_server(int server_fd) {
+BIA_CHAT_API void close_server(int server_fd) {
   close_socket(server_fd);
 }
 
 
-int accept_connect_client(int server_fd, const std::function<void(std::string, int)> &on_message) {
+BIA_CHAT_API int accept_connect_client(int server_fd, const std::function<void(std::string, int)> &on_message) {
   int client_socket = accept(server_fd, nullptr, nullptr);
 
 	{
@@ -178,7 +178,7 @@ void send_loop(int sock) {
   }
 }
 
-void connect_client(std::string IP, int PORT) {
+BIA_CHAT_API void connect_client(std::string IP, int PORT) {
 #ifdef _WIN32
   WSADATA wsaData;
   WSAStartup(MAKEWORD(2, 2), &wsaData);
