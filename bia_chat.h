@@ -31,10 +31,11 @@ inline void close_socket(int sock) { closesocket(sock); }
 inline void close_socket(int sock) { close(sock); }
 #endif
 
+BIA_CHAT_API std::vector<int> get_clients();
+
 BIA_CHAT_API int start_server();
 BIA_CHAT_API void close_server(int server_fd);
-BIA_CHAT_API int accept_connect_client(int server_fd, const std::function<void(std::string, int)> &on_message);
-// BIA_CHAT_API void broadcast(const std::string &message, int sender_socket);
-BIA_CHAT_API void connect_client(std::string IP, int PORT);
-
+BIA_CHAT_API int wait_client_connection(int server_fd, const std::function<void(std::string, int)> &on_message);
 BIA_CHAT_API void send_to_client(int client_socket, const std::string &message);
+
+BIA_CHAT_API void connect_client(std::string IP, int PORT);

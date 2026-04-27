@@ -1,11 +1,11 @@
 #include "bia_chat.h"
 #include <algorithm>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <mutex>
 #include <thread>
 #include <vector>
-#include <functional>
 #ifdef _WIN32
 #pragma comment(lib, "ws2_32.lib")
 #else
@@ -19,44 +19,9 @@
 std::vector<int> clients;
 std::mutex clients_mutex;
 
-void broadcast(const std::string &message, int sender_socket) {
+BIA_CHAT_API std::vector<int> get_clients() {
   std::lock_guard<std::mutex> lock(clients_mutex);
-
-  std::cout << "Clients: " << clients.size() << std::endl;
-  for (int client : clients) {
-    if (client != sender_socket) { // optional: don't echo back
-      send_to_client(client, message);
-    }
-  }
-}
-
-BIA_CHAT_API void send_to_client(int client_socket, const std::string &message) {
-  send(client_socket, message.c_str(), message.size(), 0);
-}
-
-
-void handle_client(int client_socket, const std::function<void(std::string, int)> &on_message) {
-  char buffer[1024];
-
-  while (true) {
-    ssize_t bytes = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-
-    if (bytes <= 0) {
-      std::cout << "Client disconnected\n";
-      break;
-    }
-
-    std::string message(buffer, bytes);
-    on_message(message, client_socket);
-  }
-
-  {
-    std::lock_guard<std::mutex> lock(clients_mutex);
-    clients.erase(std::remove(clients.begin(), clients.end(), client_socket),
-                  clients.end());
-  }
-
-  close_socket(client_socket);
+  return clients;
 }
 
 std::string get_local_ip() {
@@ -103,6 +68,37 @@ std::string get_local_ip() {
 #endif
 }
 
+void handle_client(int client_socket,
+                   const std::function<void(std::string, int)> &on_message) {
+  char buffer[1024];
+
+  while (true) {
+    ssize_t bytes = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+
+    if (bytes <= 0) {
+      std::cout << "Client disconnected\n";
+      break;
+    }
+
+    std::string message(buffer, bytes);
+    on_message(message, client_socket);
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(clients_mutex);
+    clients.erase(std::remove(clients.begin(), clients.end(), client_socket),
+                  clients.end());
+  }
+
+  close_socket(client_socket);
+}
+
+BIA_CHAT_API void send_to_client(int client_socket,
+                                 const std::string &message) {
+  send(client_socket, message.c_str(), message.size(), 0);
+}
+
+
 BIA_CHAT_API int start_server() {
 #ifdef _WIN32
   WSADATA wsaData;
@@ -129,18 +125,16 @@ BIA_CHAT_API int start_server() {
   return server_fd;
 }
 
-BIA_CHAT_API void close_server(int server_fd) {
-  close_socket(server_fd);
-}
+BIA_CHAT_API void close_server(int server_fd) { close_socket(server_fd); }
 
-
-BIA_CHAT_API int accept_connect_client(int server_fd, const std::function<void(std::string, int)> &on_message) {
+BIA_CHAT_API int wait_client_connection(
+    int server_fd, const std::function<void(std::string, int)> &on_message) {
   int client_socket = accept(server_fd, nullptr, nullptr);
 
-	{
-			std::lock_guard<std::mutex> lock(clients_mutex);
-			clients.push_back(client_socket);
-	}
+  {
+    std::lock_guard<std::mutex> lock(clients_mutex);
+    clients.push_back(client_socket);
+  }
 
   // Create a detached thread for each client
   std::thread t(handle_client, client_socket, on_message);
@@ -161,7 +155,7 @@ void receive_loop(int sock) {
     }
 
     buffer[bytes] = '\0';
-      
+
     std::cout << buffer << std::endl;
     std::cout << "> " << std::flush;
   }
